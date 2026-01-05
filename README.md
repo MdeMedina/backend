@@ -1,98 +1,193 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Backend - Plataforma de Gestión de Rentas Cortas
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend profesional para gestión de rentas cortas en edificios de hasta 250 departamentos.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Stack Tecnológico
 
-## Description
+- **NestJS** - Framework Node.js
+- **PostgreSQL** - Base de datos
+- **Prisma** - ORM
+- **JWT** - Autenticación (expiración 15 minutos)
+- **Socket.io** - WebSockets para usuarios activos
+- **Web Push** - Notificaciones push (VAPID)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Características Principales
 
-## Project setup
+### 1. Auditoría Inalterable (Back Log)
+- Tabla `audit_logs` con hash estilo blockchain (SHA-256)
+- Cada registro incluye el hash del registro anterior
+- **Restricciones de base de datos**: UPDATE y DELETE están prohibidos
+- Verificación de integridad de la cadena
 
-```bash
-$ npm install
+### 2. Gestión de Estancias
+- Categorías: Huésped, Personal de Limpieza, Personal de Mantenimiento
+- **Regla de bloqueo de 24 horas**: Después de 24h del check-in programado, las estancias se bloquean automáticamente
+- Solo Administradores pueden modificar estancias bloqueadas (requiere petición aprobada)
+
+### 3. Sistema de Roles
+- **ADMIN**: Acceso completo, puede revisar peticiones
+- **OWNER**: Propietario de departamentos
+- **ASSIGNED_MANAGER**: Responsable asignado
+- **CONCIERGE**: Solo visualiza registros del día actual hasta 24 horas después
+
+### 4. Autenticación
+- JWT con expiración estricta de 15 minutos
+- Refresh tokens con expiración de 7 días
+- Endpoints protegidos con guards y roles
+
+### 5. WebSockets
+- Conexión en tiempo real para usuarios activos
+- Notificaciones de eventos en vivo
+- Autenticación mediante JWT
+
+### 6. Web Push Notifications
+- Notificaciones cuando el usuario no tiene la pestaña abierta
+- Configuración VAPID requerida
+
+## Configuración
+
+### Variables de Entorno
+
+Crea un archivo `.env` en la raíz del backend:
+
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/dbname"
+
+# JWT
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+
+# Server
+PORT=3000
+FRONTEND_URL="http://localhost:5173"
+
+# VAPID Keys (para Web Push)
+VAPID_PUBLIC_KEY="your-vapid-public-key"
+VAPID_PRIVATE_KEY="your-vapid-private-key"
+VAPID_SUBJECT="mailto:admin@example.com"
 ```
 
-## Compile and run the project
+### Generar VAPID Keys
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npx web-push generate-vapid-keys
 ```
 
-## Run tests
+### Instalación
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm install
 ```
 
-## Deployment
+### Base de Datos
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+1. Generar Prisma Client:
+```bash
+npx prisma generate
+```
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+2. Crear migraciones:
+```bash
+npx prisma migrate dev --name init
+```
+
+3. Aplicar restricciones de auditoría:
+```bash
+# Ejecutar el script SQL manualmente en tu base de datos
+psql -d your_database -f prisma/migrations/001_prevent_audit_log_modifications.sql
+```
+
+O ejecutar el SQL directamente en tu cliente de PostgreSQL.
+
+## Estructura del Proyecto
+
+```
+src/
+├── auth/              # Autenticación JWT
+├── users/             # Gestión de usuarios
+├── apartments/        # Gestión de departamentos
+├── stays/             # Gestión de estancias
+│   └── interceptors/  # Interceptor de bloqueo 24h
+├── petitions/         # Peticiones para estancias bloqueadas
+├── audit/             # Servicio de auditoría inalterable
+│   └── interceptors/  # Interceptor de auditoría automática
+├── websocket/         # Gateway de WebSockets
+├── push/              # Servicio de Web Push Notifications
+└── prisma/            # Servicio de Prisma
+```
+
+## Endpoints Principales
+
+### Autenticación
+- `POST /auth/login` - Iniciar sesión
+- `POST /auth/refresh` - Refrescar token
+- `POST /auth/logout` - Cerrar sesión
+
+### Usuarios
+- `GET /users` - Listar usuarios (Admin, con paginación)
+- `GET /users/:id` - Obtener usuario
+- `POST /users` - Crear usuario (Admin)
+- `PATCH /users/:id` - Actualizar usuario
+- `DELETE /users/:id` - Desactivar usuario (Admin)
+
+### Departamentos
+- `GET /apartments` - Listar departamentos (con paginación)
+- `GET /apartments/:id` - Obtener departamento
+- `POST /apartments` - Crear departamento
+- `PATCH /apartments/:id` - Actualizar departamento
+- `DELETE /apartments/:id` - Desactivar departamento
+
+### Estancias
+- `GET /stays` - Listar estancias (filtrado por rol)
+- `GET /stays/:id` - Obtener estancia
+- `POST /stays` - Crear estancia
+- `PATCH /stays/:id` - Actualizar estancia (bloqueo automático después de 24h)
+- `POST /stays/:id/check-in` - Check-in
+- `POST /stays/:id/check-out` - Check-out
+
+### Peticiones
+- `POST /petitions` - Crear petición para estancia bloqueada
+- `GET /petitions` - Listar peticiones (Admin)
+- `GET /petitions/:id` - Obtener petición
+- `PATCH /petitions/:id/review` - Revisar petición (Admin)
+
+### Web Push
+- `POST /push/subscribe` - Suscribirse a notificaciones
+- `DELETE /push/unsubscribe` - Desuscribirse
+- `GET /push/public-key` - Obtener clave pública VAPID
+
+## Reglas de Negocio
+
+### Bloqueo de Estancias
+- Después de 24 horas del `scheduledCheckIn`, la estancia se bloquea automáticamente
+- Solo Administradores pueden modificar estancias bloqueadas
+- Requiere una petición aprobada para modificar estancias bloqueadas
+- El texto original de la petición no se puede modificar
+
+### Conserjes
+- Solo pueden visualizar estancias programadas para el día actual hasta 24 horas después
+- No pueden modificar estancias bloqueadas
+
+### Auditoría
+- Todos los endpoints están auditados automáticamente
+- La tabla `audit_logs` es inmutable (no UPDATE, no DELETE)
+- Hash estilo blockchain garantiza la integridad
+
+## Desarrollo
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Desarrollo con hot-reload
+npm run start:dev
+
+# Producción
+npm run build
+npm run start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Próximos Pasos
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+1. Configurar variables de entorno
+2. Generar y aplicar migraciones de Prisma
+3. Ejecutar script SQL de restricciones de auditoría
+4. Generar VAPID keys para Web Push
+5. Crear usuario administrador inicial

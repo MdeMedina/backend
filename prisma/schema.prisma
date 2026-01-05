@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -11,4 +8,195 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  OWNER
+  ASSIGNED_MANAGER
+  CONCIERGE
+}
+
+enum StayCategory {
+  GUEST
+  CLEANING_STAFF
+  MAINTENANCE_STAFF
+}
+
+enum StayStatus {
+  SCHEDULED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+}
+
+enum PetitionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  VIEW
+}
+
+// ============================================
+// USERS & AUTHENTICATION
+// ============================================
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  password          String // Hashed with bcrypt
+  firstName         String    @map("first_name")
+  lastName          String    @map("last_name")
+  phone             String?
+  role              UserRole  @default(CONCIERGE)
+  isActive          Boolean   @default(true) @map("is_active")
+  lastLogin         DateTime? @map("last_login")
+  refreshToken      String?   @map("refresh_token")
+  refreshTokenExp   DateTime? @map("refresh_token_exp")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  ownedApartments   Apartment[] @relation("ApartmentOwner")
+  managedApartments Apartment[] @relation("ApartmentManager")
+  stays             Stay[]
+  auditLogs         AuditLog[]
+  petitions         Petition[]
+  pushSubscriptions PushSubscription[]
+
+  @@map("users")
+}
+
+// ============================================
+// APARTMENTS
+// ============================================
+
+model Apartment {
+  id          String   @id @default(uuid())
+  number      String   @unique
+  floor       Int
+  building    String
+  description String?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  ownerId   String? @map("owner_id")
+  owner     User?   @relation("ApartmentOwner", fields: [ownerId], references: [id])
+  managerId String? @map("manager_id")
+  manager   User?   @relation("ApartmentManager", fields: [managerId], references: [id])
+  stays     Stay[]
+
+  @@map("apartments")
+}
+
+// ============================================
+// STAYS (Estancias)
+// ============================================
+
+model Stay {
+  id                String       @id @default(uuid())
+  apartmentId       String       @map("apartment_id")
+  apartment         Apartment    @relation(fields: [apartmentId], references: [id])
+  userId            String?      @map("user_id") // Nullable para personal de limpieza/mantenimiento
+  user              User?        @relation(fields: [userId], references: [id])
+  category          StayCategory
+  status            StayStatus   @default(SCHEDULED)
+  scheduledCheckIn  DateTime     @map("scheduled_check_in")
+  scheduledCheckOut DateTime     @map("scheduled_check_out")
+  actualCheckIn     DateTime?    @map("actual_check_in")
+  actualCheckOut    DateTime?    @map("actual_check_out")
+  guestName         String?      @map("guest_name")
+  guestEmail        String?      @map("guest_email")
+  guestPhone        String?      @map("guest_phone")
+  notes             String?
+  isLocked          Boolean      @default(false) @map("is_locked") // Bloqueado después de 24h
+  lockedAt          DateTime?    @map("locked_at")
+  createdAt         DateTime     @default(now()) @map("created_at")
+  updatedAt         DateTime     @updatedAt @map("updated_at")
+
+  // Relations
+  petitions Petition[]
+
+  @@index([apartmentId])
+  @@index([scheduledCheckIn])
+  @@index([status])
+  @@map("stays")
+}
+
+// ============================================
+// PETITIONS (Peticiones para editar estancias bloqueadas)
+// ============================================
+
+model Petition {
+  id          String         @id @default(uuid())
+  stayId      String         @map("stay_id")
+  stay        Stay           @relation(fields: [stayId], references: [id])
+  userId      String         @map("user_id")
+  user        User           @relation(fields: [userId], references: [id])
+  reason      String         @db.Text // Texto original inalterable
+  status      PetitionStatus @default(PENDING)
+  adminNotes  String?        @map("admin_notes") @db.Text
+  reviewedBy  String?        @map("reviewed_by")
+  reviewedAt  DateTime?      @map("reviewed_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@index([stayId])
+  @@index([status])
+  @@map("petitions")
+}
+
+// ============================================
+// AUDIT LOG (Back Log Inalterable)
+// ============================================
+
+model AuditLog {
+  id         String     @id @default(uuid())
+  userId     String?    @map("user_id")
+  user       User?      @relation(fields: [userId], references: [id])
+  action     AuditAction
+  entityName String     @map("entity_name")
+  entityId   String?    @map("entity_id")
+  metadata   Json       // IP, dispositivo, user agent, etc.
+  timestamp  DateTime   @default(now())
+  hash       String     @unique // SHA-256 concatenando datos + hash anterior
+  previousHash String?  @map("previous_hash") // Hash de la fila anterior
+
+  @@index([userId])
+  @@index([entityName, entityId])
+  @@index([timestamp])
+  @@index([hash])
+  @@map("audit_logs")
+}
+
+// ============================================
+// PUSH SUBSCRIPTIONS (Web Push Notifications)
+// ============================================
+
+model PushSubscription {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint     String   @unique
+  p256dh       String
+  auth         String
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }
