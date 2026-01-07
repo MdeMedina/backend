@@ -9,7 +9,8 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApartmentsService, CreateApartmentDto, UpdateApartmentDto, PaginationDto } from './apartments.service';
+import { ApartmentsService } from './apartments.service';
+import type { CreateApartmentDto, UpdateApartmentDto, PaginationDto } from './apartments.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -48,4 +49,5 @@ export class ApartmentsController {
     return this.apartmentsService.remove(id);
   }
 }
+
 

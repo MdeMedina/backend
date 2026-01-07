@@ -67,7 +67,9 @@ export class AuditInterceptor implements NestInterceptor {
     // Extraer entity name e id de la URL
     const urlParts = url.split('/').filter(Boolean);
     const entityName = urlParts[0] || 'unknown';
-    const entityId = params?.id || query?.id || null;
+    const entityIdParam = params?.id || query?.id || null;
+    // Convertir a string si es necesario
+    const entityId = entityIdParam ? String(entityIdParam) : null;
 
     const userId = (user as any)?.id || null;
 

@@ -11,13 +11,14 @@ import {
   UseInterceptors,
   Req,
 } from '@nestjs/common';
-import { StaysService, CreateStayDto, UpdateStayDto, PaginationDto } from './stays.service';
+import { StaysService } from './stays.service';
+import type { CreateStayDto, UpdateStayDto, PaginationDto } from './stays.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../../generated/prisma';
 import { StayLockInterceptor } from './interceptors/stay-lock.interceptor';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 @Controller('stays')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -65,4 +66,5 @@ export class StaysController {
     return this.staysService.checkOut(id);
   }
 }
+
 

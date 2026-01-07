@@ -1,8 +1,14 @@
-import { PrismaClient, UserRole } from '../generated/prisma/client';
+import 'dotenv/config'; // 1. Cargar variables de entorno
+import { PrismaClient, UserRole } from '../generated/prisma';
+import { PrismaPg } from '@prisma/adapter-pg'; // 2. Importar el adaptador
+import pg from 'pg'; // 3. Importar el driver nativo
 import * as bcrypt from 'bcrypt';
 
-// Prisma 7 lee automáticamente la configuración de prisma.config.ts
-const prisma = new PrismaClient({} as any);
+// 4. Configurar la conexión nativa
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
+// 5. Instanciar el cliente usando el adaptador (Estilo Prisma 7)
+const prisma = new PrismaClient({ adapter });
 
 async function createAdmin() {
   const email = process.env.ADMIN_EMAIL || 'admin@example.com';
@@ -47,4 +53,3 @@ createAdmin()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

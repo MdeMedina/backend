@@ -165,3 +165,4 @@ Backend profesional construido con NestJS para gestión de rentas cortas en edif
 5. **Testing**: Tests unitarios y E2E completos
 6. **Documentación API**: Swagger/OpenAPI
 
+

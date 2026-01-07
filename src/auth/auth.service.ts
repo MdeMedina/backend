@@ -16,6 +16,7 @@ export interface LoginDto {
 
 export interface AuthResponse {
   accessToken: string;
+  access_token: string; // Compatibilidad con frontend
   refreshToken: string;
   user: {
     id: string;
@@ -106,7 +107,8 @@ export class AuthService {
     );
 
     return {
-      accessToken,
+      access_token: accessToken,
+      accessToken, // Mantener compatibilidad
       refreshToken,
       user: {
         id: user.id,
@@ -206,5 +208,27 @@ export class AuthService {
 
     return user;
   }
+
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        phone: true,
+        isActive: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
+  }
 }
+
 

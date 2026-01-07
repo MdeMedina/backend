@@ -9,12 +9,13 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
-import { PetitionsService, CreatePetitionDto, ReviewPetitionDto, PaginationDto } from './petitions.service';
+import { PetitionsService } from './petitions.service';
+import type { CreatePetitionDto, ReviewPetitionDto, PaginationDto } from './petitions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole, PetitionStatus } from '../../generated/prisma';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 @Controller('petitions')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -45,4 +46,5 @@ export class PetitionsController {
     return this.petitionsService.review(id, reviewPetitionDto, user.id);
   }
 }
+
 

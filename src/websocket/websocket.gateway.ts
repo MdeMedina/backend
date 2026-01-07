@@ -1,5 +1,5 @@
 import {
-  WebSocketGateway,
+  WebSocketGateway as WSGateway,
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
@@ -17,7 +17,7 @@ interface AuthenticatedSocket extends Socket {
   userRole?: string;
 }
 
-@WebSocketGateway({
+@WSGateway({
   cors: {
     origin: '*', // Configurar según tu frontend
   },
@@ -118,4 +118,5 @@ export class WebSocketGateway
     return Array.from(this.connectedUsers.keys());
   }
 }
+
 

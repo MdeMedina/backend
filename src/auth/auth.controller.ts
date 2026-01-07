@@ -1,16 +1,18 @@
 import {
   Controller,
   Post,
+  Get,
   Body,
   Req,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { AuthService, LoginDto } from './auth.service';
+import { AuthService } from './auth.service';
+import type { LoginDto } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
-import { Request } from 'express';
+import type { Request } from 'express';
 
 @Controller('auth')
 export class AuthController {
@@ -45,5 +47,13 @@ export class AuthController {
     await this.authService.logout(user.id, ip, userAgent);
     return { message: 'Logged out successfully' };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('profile')
+  async getProfile(@Req() req: Request) {
+    const user = (req as any).user;
+    return this.authService.getProfile(user.id);
+  }
 }
+
 

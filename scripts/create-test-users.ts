@@ -1,9 +1,17 @@
-import { PrismaClient, UserRole } from '../generated/prisma/client';
+import 'dotenv/config'; // 1. Cargar variables de entorno
+import { PrismaClient, UserRole } from '../generated/prisma';
+import { PrismaPg } from '@prisma/adapter-pg'; // 2. Importar el adaptador
+import pg from 'pg'; // 3. Importar el driver nativo
 import * as bcrypt from 'bcrypt';
 
-// Prisma 7 lee automáticamente la configuración de prisma.config.ts
-const prisma = new PrismaClient({} as any);
+// 4. Configurar la conexión nativa
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const adapter = new PrismaPg(pool);
 
+// 5. Instanciar el cliente usando el adaptador (Estilo Prisma 7)
+const prisma = new PrismaClient({ adapter });
+
+// ... el resto de tu lógica de creación de usuarios sigue igual
 interface TestUser {
   email: string;
   password: string;
@@ -101,4 +109,3 @@ createTestUsers()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
