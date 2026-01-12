@@ -2,28 +2,40 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { StayCategory, StayStatus, UserRole } from '../../generated/prisma';
 
+export interface Guest {
+  name: string;
+  email?: string;
+  phone?: string;
+  document?: string;
+}
+
 export interface CreateStayDto {
   apartmentId: string;
   userId?: string;
   category: StayCategory;
-  scheduledCheckIn: Date;
-  scheduledCheckOut: Date;
+  scheduledCheckIn: string | Date;
+  scheduledCheckOut: string | Date;
   guestName?: string;
+  guestDocument?: string; // RUT o Pasaporte
   guestEmail?: string;
   guestPhone?: string;
+  guests?: Guest[];
   notes?: string;
 }
 
 export interface UpdateStayDto {
-  scheduledCheckIn?: Date;
-  scheduledCheckOut?: Date;
-  actualCheckIn?: Date;
-  actualCheckOut?: Date;
+  scheduledCheckIn?: string | Date;
+  scheduledCheckOut?: string | Date;
+  actualCheckIn?: string | Date;
+  actualCheckOut?: string | Date;
   guestName?: string;
+  guestDocument?: string; // RUT o Pasaporte
   guestEmail?: string;
   guestPhone?: string;
+  guests?: Guest[];
   notes?: string;
   status?: StayStatus;
+  category?: StayCategory;
 }
 
 export interface PaginationDto {
@@ -31,13 +43,39 @@ export interface PaginationDto {
   limit?: number;
 }
 
+// Helper para convertir string a Date ISO válido
+const toISODate = (date: string | Date | undefined): Date | undefined => {
+  if (!date) return undefined;
+  if (date instanceof Date) return date;
+  // Si es string, convertir a ISO completo
+  const parsed = new Date(date);
+  if (isNaN(parsed.getTime())) {
+    throw new Error(`Invalid date format: ${date}`);
+  }
+  return parsed;
+};
+
 @Injectable()
 export class StaysService {
   constructor(private prisma: PrismaService) {}
 
   async create(createStayDto: CreateStayDto) {
+    const data: any = {
+      apartmentId: createStayDto.apartmentId,
+      userId: createStayDto.userId,
+      category: createStayDto.category,
+      scheduledCheckIn: toISODate(createStayDto.scheduledCheckIn),
+      scheduledCheckOut: toISODate(createStayDto.scheduledCheckOut),
+      guestName: createStayDto.guestName,
+      guestDocument: createStayDto.guestDocument,
+      guestEmail: createStayDto.guestEmail,
+      guestPhone: createStayDto.guestPhone,
+      guests: createStayDto.guests || null,
+      notes: createStayDto.notes,
+    };
+
     return this.prisma.stay.create({
-      data: createStayDto,
+      data,
       include: {
         apartment: {
           select: {
@@ -201,10 +239,25 @@ export class StaysService {
       throw new NotFoundException('Stay not found');
     }
 
+    // Convertir fechas a ISO válido
+    const data: any = { ...updateStayDto };
+    if (updateStayDto.scheduledCheckIn) {
+      data.scheduledCheckIn = toISODate(updateStayDto.scheduledCheckIn);
+    }
+    if (updateStayDto.scheduledCheckOut) {
+      data.scheduledCheckOut = toISODate(updateStayDto.scheduledCheckOut);
+    }
+    if (updateStayDto.actualCheckIn) {
+      data.actualCheckIn = toISODate(updateStayDto.actualCheckIn);
+    }
+    if (updateStayDto.actualCheckOut) {
+      data.actualCheckOut = toISODate(updateStayDto.actualCheckOut);
+    }
+
     // El interceptor se encargará de verificar el bloqueo de 24 horas
     return this.prisma.stay.update({
       where: { id },
-      data: updateStayDto,
+      data,
       include: {
         apartment: {
           select: {

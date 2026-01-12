@@ -38,3 +38,4 @@ COMMENT ON TABLE audit_logs IS 'Immutable audit log table. UPDATE and DELETE ope
 
 
 
+

@@ -120,8 +120,10 @@ model Stay {
   actualCheckIn     DateTime?    @map("actual_check_in")
   actualCheckOut    DateTime?    @map("actual_check_out")
   guestName         String?      @map("guest_name")
+  guestDocument     String?      @map("guest_document") // RUT o Pasaporte
   guestEmail        String?      @map("guest_email")
   guestPhone        String?      @map("guest_phone")
+  guests            Json?        // Array de huéspedes adicionales [{name, email, phone, document}]
   notes             String?
   isLocked          Boolean      @default(false) @map("is_locked") // Bloqueado después de 24h
   lockedAt          DateTime?    @map("locked_at")
