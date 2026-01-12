@@ -1,69 +1,37 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-  UseGuards,
-  UseInterceptors,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Request, UseInterceptors } from '@nestjs/common';
 import { StaysService } from './stays.service';
-import type { CreateStayDto, UpdateStayDto, PaginationDto } from './stays.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
-import { UserRole } from '../../generated/prisma';
+import type { PaginationDto } from './stays.service';
 import { StayLockInterceptor } from './interceptors/stay-lock.interceptor';
-import type { Request } from 'express';
+import { UserRole } from '../../generated/prisma';
 
 @Controller('stays')
-@UseGuards(JwtAuthGuard, RolesGuard)
 export class StaysController {
   constructor(private readonly staysService: StaysService) {}
 
-  @Post()
-  create(@Body() createStayDto: CreateStayDto) {
-    return this.staysService.create(createStayDto);
-  }
-
   @Get()
-  findAll(@Query() pagination: PaginationDto, @Req() req: Request) {
-    const user = (req as any).user;
-    return this.staysService.findAll(pagination, user.role, user.id);
+  findAll(@Query() pagination: PaginationDto, @Request() req: any) {
+    const userRole = req.user?.role as UserRole;
+    const userId = req.user?.id;
+    if (!userRole) {
+      throw new Error('User not authenticated');
+    }
+    return this.staysService.findAll(pagination, userRole, userId);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string, @Req() req: Request) {
-    const user = (req as any).user;
-    return this.staysService.findOne(id, user.role, user.id);
+  findOne(@Param('id') id: string, @Request() req: any) {
+    const userRole = req.user?.role as UserRole;
+    const userId = req.user?.id;
+    if (!userRole) {
+      throw new Error('User not authenticated');
+    }
+    return this.staysService.findOne(id, userRole, userId);
   }
 
+  @Post()
   @UseInterceptors(StayLockInterceptor)
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateStayDto: UpdateStayDto, @Req() req: Request) {
-    const user = (req as any).user;
-    return this.staysService.update(id, updateStayDto, user.role);
-  }
-
-  @Roles(UserRole.ADMIN)
-  @Delete(':id')
-  remove(@Param('id') id: string, @Req() req: Request) {
-    const user = (req as any).user;
-    return this.staysService.remove(id, user.role);
-  }
-
-  @Post(':id/check-in')
-  checkIn(@Param('id') id: string) {
-    return this.staysService.checkIn(id);
-  }
-
-  @Post(':id/check-out')
-  checkOut(@Param('id') id: string) {
-    return this.staysService.checkOut(id);
+  create(@Body() body: any) {
+    return this.staysService.create(body);
   }
 }
 

@@ -1,4 +1,3 @@
-import 'dotenv/config'; // 1. Cargar variables de entorno
 import { PrismaClient, UserRole } from '../generated/prisma';
 import { PrismaPg } from '@prisma/adapter-pg'; // 2. Importar el adaptador
 import pg from 'pg'; // 3. Importar el driver nativo

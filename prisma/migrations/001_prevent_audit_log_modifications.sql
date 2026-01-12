@@ -37,3 +37,4 @@ CREATE TRIGGER audit_log_prevent_delete
 COMMENT ON TABLE audit_logs IS 'Immutable audit log table. UPDATE and DELETE operations are prohibited to maintain data integrity.';
 
 
+

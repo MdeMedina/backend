@@ -1,95 +1,81 @@
 import {
+  CallHandler,
+  ExecutionContext,
   Injectable,
   NestInterceptor,
-  ExecutionContext,
-  CallHandler,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
-import { Reflector } from '@nestjs/core';
-import { AuditService, AuditMetadata } from '../audit.service';
+import { AuditService } from '../audit.service';
 import { AuditAction } from '../../../generated/prisma';
-import { Request } from 'express';
-import { IS_PUBLIC_KEY } from '../../auth/decorators/public.decorator';
 
 @Injectable()
 export class AuditInterceptor implements NestInterceptor {
-  constructor(
-    private auditService: AuditService,
-    private reflector: Reflector,
-  ) {}
+  constructor(private readonly auditService: AuditService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const request = context.switchToHttp().getRequest<Request>();
-    const { user, method, url, body, params, query } = request;
+    const request = context.switchToHttp().getRequest();
+    const userId = request.user?.id ?? null;
+    const method = request.method;
+    const path = request.url;
+    const handler = context.getHandler();
+    const controller = context.getClass();
+    const entityName = controller.name.replace('Controller', '');
 
-    // No auditar rutas públicas (excepto login que se audita manualmente)
-    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
-
-    if (isPublic && method !== 'POST' && url !== '/auth/login') {
-      return next.handle();
-    }
-
-    // Determinar la acción basada en el método HTTP
-    let action: AuditAction;
-    switch (method) {
-      case 'POST':
-        action = AuditAction.CREATE;
-        break;
-      case 'PUT':
-      case 'PATCH':
-        action = AuditAction.UPDATE;
-        break;
-      case 'DELETE':
-        action = AuditAction.DELETE;
-        break;
-      case 'GET':
-        action = AuditAction.VIEW;
-        break;
-      default:
-        action = AuditAction.VIEW;
-    }
-
-    // Extraer metadata
-    const metadata: AuditMetadata = {
-      ip: request.ip || request.socket.remoteAddress,
-      userAgent: request.get('user-agent'),
-      method,
-      url,
-      body: method !== 'GET' ? body : undefined,
-      params,
-      query,
-    };
-
-    // Extraer entity name e id de la URL
-    const urlParts = url.split('/').filter(Boolean);
-    const entityName = urlParts[0] || 'unknown';
-    const entityIdParam = params?.id || query?.id || null;
-    // Convertir a string si es necesario
-    const entityId = entityIdParam ? String(entityIdParam) : null;
-
-    const userId = (user as any)?.id || null;
+    const startedAt = Date.now();
 
     return next.handle().pipe(
-      tap(async () => {
-        // Registrar después de que la operación sea exitosa
-        try {
-          await this.auditService.createAuditLog(
+      tap(() => {
+        const durationMs = Date.now() - startedAt;
+
+        // Mapear métodos HTTP a acciones de auditoría
+        let action: AuditAction;
+        switch (method) {
+          case 'GET':
+            action = AuditAction.VIEW;
+            break;
+          case 'POST':
+            action = AuditAction.CREATE;
+            break;
+          case 'PATCH':
+          case 'PUT':
+            action = AuditAction.UPDATE;
+            break;
+          case 'DELETE':
+            action = AuditAction.DELETE;
+            break;
+          default:
+            action = AuditAction.VIEW;
+        }
+
+        // Extraer entityId de los parámetros si existe
+        const entityId = request.params?.id || null;
+
+        // Crear metadata con información adicional
+        const metadata = {
+          method,
+          path,
+          durationMs,
+          handler: handler.name,
+          ip: request.ip,
+          userAgent: request.get('user-agent'),
+        };
+
+        // Registrar en auditoría
+        this.auditService
+          .createAuditLog(
             userId,
             action,
             entityName,
             entityId,
             metadata,
-          );
-        } catch (error) {
-          // No fallar la request si la auditoría falla, pero loguear
-          console.error('Error creating audit log:', error);
-        }
+          )
+          .catch(() => {
+            // Evitar que un fallo de auditoría rompa la petición
+          });
       }),
     );
   }
 }
+
 
