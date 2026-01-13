@@ -169,10 +169,84 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    // Soft delete: desactivar en lugar de eliminar
+    // Soft delete: desactivar en lugar de eliminar (BR-03: conservar historial)
     return this.prisma.user.update({
       where: { id },
       data: { isActive: false },
+    });
+  }
+
+  /**
+   * Obtiene la jerarquía de propietarios con sus responsables asignados y departamentos
+   * Solo para Admin según ERS
+   */
+  async getHierarchy(requestingUserRole: UserRole) {
+    if (requestingUserRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only administrators can view the hierarchy');
+    }
+
+    // Obtener todos los propietarios con sus departamentos
+    const owners = await this.prisma.user.findMany({
+      where: { role: UserRole.OWNER },
+      orderBy: { lastName: 'asc' },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        isActive: true,
+        lastLogin: true,
+        createdAt: true,
+        ownedApartments: {
+          select: {
+            id: true,
+            number: true,
+            floor: true,
+            building: true,
+            isActive: true,
+            manager: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+                isActive: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return owners;
+  }
+
+  /**
+   * Activa o desactiva un usuario (para validación de documentos)
+   */
+  async toggleActive(id: string, isActive: boolean, requestingUserRole: UserRole) {
+    if (requestingUserRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only administrators can activate/deactivate users');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        isActive: true,
+        updatedAt: true,
+      },
     });
   }
 }
